@@ -35,3 +35,8 @@
 #username-container {
 	overflow-y: scroll;
 }
+
+.un-name:hover {
+	color: red;
+	text-decoration: underline;
+}

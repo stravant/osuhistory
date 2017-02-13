@@ -19,6 +19,7 @@ for (var i = 0; i < OsuHistory.length-1; ++i) {
 
 // Data for each player
 var PlayerData = {};
+var PlayerCount = 0;
 
 // Fraction of the way along the timeline a sample is
 var SampleFraction = {};
@@ -37,6 +38,11 @@ var Canvas;
 
 var NameDiv;
 
+var EnableRow;
+
+
+var TopBarHeight = 20;
+
 
 function Player(userId) {
 	this.userId = userId;
@@ -48,6 +54,7 @@ function Player(userId) {
 	this.hovered = false;
 	this.selected = false;
 	this.shown = true;
+	this.color = [0, 0, 0];
 }
 
 function getPlayer(userId) {
@@ -55,6 +62,7 @@ function getPlayer(userId) {
 	if (player == undefined) {
 		player = new Player(userId);
 		PlayerData[userId] = player;
+		++PlayerCount;
 	}
 	return player;
 }
@@ -96,6 +104,23 @@ function loadData() {
 			player.allUsernames[playerData.username.toLowerCase()] = true;
 		})
 	});
+
+	// Show only good players by default
+	for (var userId in PlayerData) {
+		var player = PlayerData[userId];
+		if (player.highestRank > 12) {
+			player.shown = false;
+		}
+	}	
+
+	// For each player assign a color
+	/*var n;
+	for (var userId in PlayerData) {
+		var player = PlayerData[userId];
+		player.color = 
+	}
+	hslToRgb*/
+
 }
 
 function setHoverPlayer(player) {
@@ -116,7 +141,7 @@ function setHoverPlayer(player) {
 function rankCoord(i, rank) {
 	return [
 		Math.floor(Canvas.width * SampleFraction[i]),
-		Math.floor((Canvas.height / TotalRanks) * rank)
+		Math.floor((Canvas.height / TotalRanks) * rank) + TopBarHeight
 	];
 }
 
@@ -141,10 +166,20 @@ function drawPlayer(ctx, player) {
 	ctx.lineWidth = 1;
 	ctx.lineCap = 'round';
 	if (player.hovered) {
-		ctx.lineWidth = 3
-		ctx.strokeStyle = 'red';
+		ctx.lineWidth = 5;
+		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
+			ctx.strokeStyle = 'red';
+		} else {
+			ctx.strokeStyle = 'rgb(' + player.color[0] + ',' + player.color[1] + ',' + player.color[2] + ')';
+		}
 	} else {
-		ctx.strokeStyle = 'black';
+		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
+			ctx.strokeStyle = 'black';
+			ctx.lineWidth = 1;
+		} else {
+			ctx.strokeStyle = 'rgb(' + player.color[0] + ',' + player.color[1] + ',' + player.color[2] + ')';
+			ctx.lineWidth = 3;
+		}
 	}
 	ctx.stroke();
 	//ctx.closePath();
@@ -185,6 +220,7 @@ function resizeGraph() {
 }
 
 function getClosestPlayer(x, y) {
+	y = y - TopBarHeight
 	// Get the index into the samples where the cursor is
 	var xFrac = x / Canvas.width;
 	//console.log(xFrac);
@@ -237,16 +273,66 @@ function updateGraph_Leave() {
 	}
 }
 
+function createEnableRow(player) {
+	var tb = document.getElementById('un-table');
+	var newNode = EnableRow.cloneNode(true);
+	tb.appendChild(newNode);
+
+
+	var checkBox = newNode.getElementsByClassName('un-check')[0];
+	checkBox.checked = player.shown;
+
+	newNode.getElementsByClassName('un-name')[0].innerHTML = player.mostRecentUsername;
+	newNode.addEventListener('mouseenter', function() {
+		setHoverPlayer(player);
+		drawGraph();
+	});
+	newNode.addEventListener('mouseleave', function() {
+		setHoverPlayer(null);
+		drawGraph();
+	});
+	newNode.addEventListener('mouseclick', function() {
+		console.log(checkBox);
+		checkBox.checked = !checkBox.checked;
+	});
+	
+}
+
+function createEnableRows() {
+	
+	var sortedPlayers = []
+	for (var userId in PlayerData) {
+		var player = PlayerData[userId];
+		sortedPlayers.push(player);
+	}
+	sortedPlayers.sort(function(a, b) {
+		return a.highestRank - b.highestRank;
+	});
+	sortedPlayers.forEach(createEnableRow);
+}
+
 
 document.addEventListener('DOMContentLoaded', function() {
-	console.log("Loading...");
-
 	Canvas = document.getElementById('graph');
 
 	NameDiv = document.getElementById('player-name');
+
+	EnableRow = document.getElementById('un-row');
+	EnableRow.remove();
 	
 	// Load in the data
 	loadData();
+
+	// Create enables
+	createEnableRows();
+
+	getPlayerByUsername('cookiezi').color = [180, 0, 0];
+	getPlayerByUsername('wubwoofwolf').color = [0, 180, 0];
+	getPlayerByUsername('thelewa').color = [0, 0, 180];
+	getPlayerByUsername('hvick225').color = [0, 180, 180];
+	getPlayerByUsername('rrtyui').color = [180, 0, 180];
+	getPlayerByUsername('sayonara-bye').color = [180, 180, 0];
+	getPlayerByUsername('rafis').color = [140, 140, 170];
 
 	//getPlayerByUsername('cookiezi').hovered = true;
 
@@ -265,6 +351,4 @@ document.addEventListener('DOMContentLoaded', function() {
 		resizeGraph();
 		drawGraph();
 	});
-
-	console.log("Loaded");
 });
