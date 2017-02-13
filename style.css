@@ -1,0 +1,37 @@
+
+#player-name {
+	font-size: 32pt;
+
+	border-color: black;
+	border-width: 3;
+	border-style: solid;
+	border-left-style: none;
+	border-bottom-style: none;
+
+	background-color: white; 
+
+	position: absolute; 
+	bottom: 0; 
+
+}
+
+
+.outer-container {
+	border-width: 3px;
+	border-color: black;
+	border-style: solid;
+}
+
+#graph-container {
+	border-width: 3px;
+	border-color: black;
+	border-right-style: solid;
+}
+
+.un-check {
+	text-align: center;
+};
+
+#username-container {
+	overflow-y: scroll;
+}
