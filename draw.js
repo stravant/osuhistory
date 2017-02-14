@@ -41,7 +41,7 @@ var NameDiv;
 var EnableRow;
 
 
-var TopBarHeight = 20;
+var TopBarHeight = 30;
 
 
 function Player(userId) {
@@ -72,6 +72,7 @@ function getPlayerByUsername(username) {
 	for (var userId in PlayerData) {
 		var player = PlayerData[userId];
 		if (player.allUsernames[username]) {
+			player.shown = true;
 			return player;
 		}
 	}
@@ -112,7 +113,7 @@ function loadData() {
 	for (var userId in PlayerData) {
 		// Show only good players by default
 		var player = PlayerData[userId];
-		if (player.highestRank > 12) {
+		if (player.highestRank > 4) {
 			player.shown = false;
 		}
 
@@ -133,6 +134,8 @@ function loadData() {
 			CurrentSelectedPlayer = user;
 		}
 	}
+
+	getPlayerByUsername('azer').shown = true;
 
 	// For each player assign a color
 	/*var n;
@@ -180,6 +183,7 @@ function rankCoord(i, rank) {
 
 function drawPlayerPath(ctx, player) {
 	ctx.beginPath();
+	var lastDrawnName = -0.2;
 	for (var i = 1; i < player.ranks.length; ++i) {
 		var lastRank = player.ranks[i - 1];
 		var thisRank = player.ranks[i];
@@ -192,7 +196,30 @@ function drawPlayerPath(ctx, player) {
 			}
 		}
 	}
+	var stroke = ctx.strokeStyle;
 	ctx.stroke();
+	if (!(player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) || player.hovered || player.selected) {
+		for (var i = 1; i < player.ranks.length; ++i) {
+			var lastRank = player.ranks[i - 1];
+			var thisRank = player.ranks[i];
+			if (thisRank != undefined) {
+				var coord = rankCoord(i, thisRank);
+				var sample = SampleFraction[i];
+				if (sample - lastDrawnName > 0.2 && (lastRank == thisRank)) {
+					lastDrawnName = sample;
+					ctx.save();
+					ctx.font = '8pt sans-serif';
+					ctx.lineWidth = 3;
+					ctx.textAlign = 'center';
+					ctx.strokeStyle = 'white';
+					ctx.strokeText(player.mostRecentUsername, coord[0], coord[1] - 1);
+					ctx.fillStyle = stroke;
+					ctx.fillText(player.mostRecentUsername, coord[0], coord[1] - 1);
+					ctx.restore();
+				}
+			}
+		}
+	}
 }
 
 function drawPlayer(ctx, player) {
@@ -204,15 +231,15 @@ function drawPlayer(ctx, player) {
 	var lineWidth;
 	if (player.hovered || player.selected) {
 		if (player.hovered) {
-			lineWidth = 5;
+			lineWidth = 4;
 		} else {
-			lineWidth = 5;
+			lineWidth = 6;
 		}
 	} else {
 		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
 			lineWidth = 1;
 		} else {
-			lineWidth = 3;
+			lineWidth = 2;
 		}
 	}
 	
@@ -227,7 +254,11 @@ function drawPlayer(ctx, player) {
 	ctx.lineWidth = lineWidth; 
 	if (player.hovered || player.selected) {
 		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
-			ctx.strokeStyle = 'red';
+			if (player.selected) {
+				ctx.strokeStyle = 'red';
+			} else {
+				ctx.strokeStyle = 'rgb(200, 0, 0)';
+			}
 		} else {
 			ctx.strokeStyle = 'rgb(' + player.color[0] + ',' + player.color[1] + ',' + player.color[2] + ')';
 		}
@@ -236,7 +267,7 @@ function drawPlayer(ctx, player) {
 		}
 	} else {
 		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
-			ctx.strokeStyle = 'black';
+			ctx.strokeStyle = 'rgb(60, 60, 60)';
 		} else {
 			ctx.strokeStyle = 'rgb(' + player.color[0] + ',' + player.color[1] + ',' + player.color[2] + ')';
 		}
@@ -249,6 +280,24 @@ function drawPlayer(ctx, player) {
 
 }
 
+function drawYears(ctx) {
+	var startDate = getDate(OsuHistory[0])
+	var endDate = getDate(OsuHistory[OsuHistory.length-1]);
+	for (var year = 2012; year <= 2017; ++year) {
+		var frac = (new Date(year, 1, 1) - startDate) / (endDate - startDate);
+		var x = frac*Canvas.width
+		ctx.lineWidth = 7;
+		ctx.strokeStyle = 'rgb(200, 200, 200)';
+		ctx.beginPath();
+		ctx.moveTo(x, TopBarHeight - 13);
+		ctx.lineTo(x, Canvas.height);
+		ctx.stroke();
+		ctx.font = '20px serif';
+		ctx.textAlign = 'center';
+		ctx.fillText("" + year, x, TopBarHeight - 14);
+	}
+}
+
 function drawGraph() {
 	var ctx = Canvas.getContext('2d');
 
@@ -256,6 +305,8 @@ function drawGraph() {
 
 	ctx.save();
 	ctx.translate(-0.5, 0.5);
+
+	drawYears(ctx);
 
 	for (var userId in PlayerData) {
 		var player = PlayerData[userId];
