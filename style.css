@@ -28,9 +28,9 @@
 	border-right-style: solid;
 }
 
-.un-check {
+.un-check-td {
 	text-align: center;
-};
+}
 
 #username-container {
 	overflow-y: scroll;

@@ -48,6 +48,7 @@ function Player(userId) {
 	this.userId = userId;
 	this.mostRecentUsername = null;
 	this.allUsernames = {};
+	this.usernamesInOrder = [];
 	this.highestRank = TotalRanks;
 	this.ranks = [];
 	this.pp = [];
@@ -102,16 +103,36 @@ function loadData() {
 			// Most recent username
 			player.mostRecentUsername = playerData.username;
 			player.allUsernames[playerData.username.toLowerCase()] = true;
+			if (player.usernamesInOrder.length == 0 || player.usernamesInOrder[player.usernamesInOrder.length - 1] != playerData.username) {
+				player.usernamesInOrder.push(playerData.username);
+			}
 		})
 	});
 
-	// Show only good players by default
 	for (var userId in PlayerData) {
+		// Show only good players by default
 		var player = PlayerData[userId];
 		if (player.highestRank > 12) {
 			player.shown = false;
 		}
+
+		// Calculate the full name of the player
+		var fullName = player.usernamesInOrder[player.usernamesInOrder.length - 1];
+		var arr = player.usernamesInOrder.slice(0, -1).reverse();
+		if (arr.length > 0) {
+			fullName = fullName + " (" + arr.join(", ") + ")";
+		}
+		player.fullName = fullName;
 	}	
+
+	var queryParam = /#(.*)$/.exec(window.location.href)[1];
+	if (queryParam) {
+		var user = getPlayerByUsername(queryParam.toLowerCase());
+		if (user) {
+			user.selected = true;
+			CurrentSelectedPlayer = user;
+		}
+	}
 
 	// For each player assign a color
 	/*var n;
@@ -132,9 +153,21 @@ function setHoverPlayer(player) {
 
 	if (CurrentHoverPlayer != null) {
 		CurrentHoverPlayer.hovered = true;
-		NameDiv.innerHTML = CurrentHoverPlayer.mostRecentUsername;
+		NameDiv.innerHTML = CurrentHoverPlayer.fullName;
 	} else {
 		NameDiv.innerHTML = "";
+	}
+}
+
+function setSelectedPlayer(player) {
+	if (CurrentSelectedPlayer != null) {
+		CurrentSelectedPlayer.selected = false;
+	}
+
+	CurrentSelectedPlayer = player;
+
+	if (CurrentSelectedPlayer != null) {
+		CurrentSelectedPlayer.selected = true;
 	}
 }
 
@@ -145,11 +178,7 @@ function rankCoord(i, rank) {
 	];
 }
 
-function drawPlayer(ctx, player) {
-	if (!player.shown) {
-		return;
-	}
-
+function drawPlayerPath(ctx, player) {
 	ctx.beginPath();
 	for (var i = 1; i < player.ranks.length; ++i) {
 		var lastRank = player.ranks[i - 1];
@@ -163,26 +192,60 @@ function drawPlayer(ctx, player) {
 			}
 		}
 	}
-	ctx.lineWidth = 1;
-	ctx.lineCap = 'round';
-	if (player.hovered) {
-		ctx.lineWidth = 5;
+	ctx.stroke();
+}
+
+function drawPlayer(ctx, player) {
+	if (!player.shown) {
+		return;
+	}
+
+	// For hover player, outline in white
+	var lineWidth;
+	if (player.hovered || player.selected) {
+		if (player.hovered) {
+			lineWidth = 5;
+		} else {
+			lineWidth = 5;
+		}
+	} else {
+		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
+			lineWidth = 1;
+		} else {
+			lineWidth = 3;
+		}
+	}
+	
+	if (player.hovered || player.selected) {
+		ctx.lineWidth = lineWidth + 4;
+		ctx.strokeStyle = 'white';
+		drawPlayerPath(ctx, player);
+	}
+
+	// Line setup
+	ctx.save();
+	ctx.lineWidth = lineWidth; 
+	if (player.hovered || player.selected) {
 		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
 			ctx.strokeStyle = 'red';
 		} else {
 			ctx.strokeStyle = 'rgb(' + player.color[0] + ',' + player.color[1] + ',' + player.color[2] + ')';
 		}
+		if (player.selected) {
+			ctx.setLineDash([8, 2]);/*dashes are 5px and spaces are 3px*/
+		}
 	} else {
 		if (player.color[0] == 0 && player.color[1] == 0 && player.color[2] == 0) {
 			ctx.strokeStyle = 'black';
-			ctx.lineWidth = 1;
 		} else {
 			ctx.strokeStyle = 'rgb(' + player.color[0] + ',' + player.color[1] + ',' + player.color[2] + ')';
-			ctx.lineWidth = 3;
 		}
 	}
-	ctx.stroke();
-	//ctx.closePath();
+
+	// Draw
+	drawPlayerPath(ctx, player);
+
+	ctx.restore();
 
 }
 
@@ -201,12 +264,12 @@ function drawGraph() {
 		}
 	}
 
-	if (CurrentHoverPlayer != null) {
-		drawPlayer(ctx, CurrentHoverPlayer);
-	}
-
 	if (CurrentSelectedPlayer != null && CurrentSelectedPlayer != CurrentHoverPlayer) {
 		drawPlayer(ctx, CurrentSelectedPlayer);
+	}
+
+	if (CurrentHoverPlayer != null) {
+		drawPlayer(ctx, CurrentHoverPlayer);
 	}
 
 
@@ -266,6 +329,14 @@ function updateGraph_Hover(x, y) {
 	}
 }
 
+function updateGraph_Click(x, y) {
+	var target = getClosestPlayer(x, y);
+	if (target != CurrentSelectedPlayer) {
+		setSelectedPlayer(target);
+		drawGraph();
+	}
+}
+
 function updateGraph_Leave() {
 	if (CurrentHoverPlayer != null) {
 		setHoverPlayer(null);
@@ -282,7 +353,7 @@ function createEnableRow(player) {
 	var checkBox = newNode.getElementsByClassName('un-check')[0];
 	checkBox.checked = player.shown;
 
-	newNode.getElementsByClassName('un-name')[0].innerHTML = player.mostRecentUsername;
+	newNode.getElementsByClassName('un-name')[0].innerHTML = player.fullName;
 	newNode.addEventListener('mouseenter', function() {
 		setHoverPlayer(player);
 		drawGraph();
@@ -346,6 +417,9 @@ document.addEventListener('DOMContentLoaded', function() {
 	});
 	Canvas.addEventListener('mouseleave', function(e) {
 		updateGraph_Leave();
+	});
+	Canvas.addEventListener('click', function(e) {
+		updateGraph_Click(e.offsetX, e.offsetY);
 	});
 	window.addEventListener('resize', function() {
 		resizeGraph();
